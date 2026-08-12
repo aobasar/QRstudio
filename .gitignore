@@ -2,3 +2,9 @@ node_modules/
 .DS_Store
 .claude-sessions
 *.log
+
+# AOB private notes (personal)
+AOB/
+
+# local env / secrets
+.env.local
