@@ -66,7 +66,9 @@ prevent.
 ## Repository
 
 - Remote: `github.com/aobasar/QRstudio` (private)
-- Live demo: GitHub Pages, served from the default branch root
+- No live demo: GitHub Pages needs a paid plan while the repo is private. If it
+  is ever made public, enable Pages from `main` at root and point the homepage
+  field at `https://aobasar.github.io/QRstudio/`
 - Commits use the noreply address from the global git config
 - `node_modules/` is ignored; `vendor/` is committed, because offline operation
   is a feature
