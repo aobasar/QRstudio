@@ -1,0 +1,222 @@
+#!/usr/bin/env node
+/* ============================================================================
+ * qrgen — A·BASAR QR Studio command line tool
+ *
+ *   ./qrgen "https://aobasar.com" --frame circle --dot hex --logo ink --out kart.svg
+ *   ./qrgen --csv adresler.csv --outdir cikti/ --png
+ *
+ * Uses the same engine as index.html, so anything designed in the browser can
+ * be reproduced here by pasting the "CLI komutu" it shows.
+ * ========================================================================== */
+'use strict';
+
+var fs = require('fs');
+var path = require('path');
+var ABQR = require('./core.js');
+var LOGO = require('./assets/logo.js');
+var encodePNG = require('./png.js').encodePNG;
+
+var jsQR = null;
+try { jsQR = require('./vendor/jsQR.js'); } catch (e) { /* verification unavailable */ }
+
+// ------------------------------------------------------------------- args
+
+var FLAGS = {
+  '--frame': 'frame', '--dot': 'dot', '--finder': 'finder',
+  '--dot-scale': 'dotScale', '--frame-gap': 'frameGap', '--frame-stroke': 'frameStroke',
+  '--quiet': 'quiet', '--fg': 'fg', '--bg': 'bg', '--frame-fill': 'frameFill',
+  '--surround': 'surround',
+  '--logo': 'logo', '--logo-pct': 'logoPct', '--logo-shape': 'logoShape',
+  '--logo-pad': 'logoPad', '--label': 'label', '--label-size': 'labelSize',
+  '--px': 'px', '--ecc': 'ecc', '--min-version': 'minVersion'
+};
+var NUMERIC = ['dotScale', 'frameGap', 'frameStroke', 'quiet', 'logoPct', 'logoPad',
+               'labelSize', 'px', 'minVersion'];
+
+function parseArgs(argv) {
+  var out = { _: [], opts: {}, out: null, outdir: null, csv: null,
+              png: false, svg: true, verify: false, quietLog: false, json: null };
+  for (var i = 0; i < argv.length; i++) {
+    var a = argv[i];
+    if (a === '--out') { out.out = argv[++i]; }
+    else if (a === '--outdir') { out.outdir = argv[++i]; }
+    else if (a === '--csv') { out.csv = argv[++i]; }
+    else if (a === '--json') { out.json = argv[++i]; }
+    else if (a === '--png') { out.png = true; }
+    else if (a === '--no-svg') { out.svg = false; }
+    else if (a === '--verify') { out.verify = true; }
+    else if (a === '--silent') { out.quietLog = true; }
+    else if (a === '-h' || a === '--help') { usage(0); }
+    else if (FLAGS[a]) {
+      var key = FLAGS[a], val = argv[++i];
+      out.opts[key] = NUMERIC.indexOf(key) >= 0 ? parseFloat(val) : val;
+    }
+    else if (a[0] === '-') { fail('unknown option: ' + a); }
+    else { out._.push(a); }
+  }
+  return out;
+}
+
+function fail(msg) { process.stderr.write('error: ' + msg + '\n'); process.exit(1); }
+
+function usage(code) {
+  process.stdout.write([
+    'qrgen — A·BASAR QR Studio CLI',
+    '',
+    'Usage:',
+    '  ./qrgen "<text>" [options]',
+    '  ./qrgen --csv <file.csv> --outdir <dir> [options]',
+    '',
+    'Shape:',
+    '  --frame none|circle|hex            frame type (default: circle)',
+    '  --dot hex|circle|rounded|square    module shape (default: hex)',
+    '  --finder rounded|circle|square|hex finder patterns (default: rounded)',
+    '  --dot-scale <n>                    module size multiplier (1.15 for hex)',
+    '  --frame-gap <n>                    clearance between code and frame, modules',
+    '  --frame-stroke <n>                 frame outline thickness, modules',
+    '  --quiet <n>                        quiet zone (only with --frame none)',
+    '',
+    'Colour:',
+    '  --fg <hex>                         module colour (default: #0C1B33)',
+    '  --bg <hex>                         background colour (default: #FFFFFF)',
+    '  --surround <hex>|transparent       outside the frame (default: transparent)',
+    '',
+    'Logo:',
+    '  --logo ink|white|none|<file>       embedded mark, off, or your own file',
+    '  --logo-pct <0-0.34>                logo width relative to the code side',
+    '  --logo-shape hex|circle|rounded|none',
+    '  --logo-pad <n>                     padding around the backing plate, modules',
+    '',
+    'Output:',
+    '  --out <file.svg>                   single file output',
+    '  --outdir <dir>                     output directory for batches',
+    '  --png                              also write PNG (label text is not rendered)',
+    '  --no-svg                           write PNG only',
+    '  --px <n>                           pixel size (default: 1024)',
+    '  --label "<text>"                   frame label (SVG only)',
+    '  --verify                           decode the result and report readability',
+    '  --json <file>                      load a preset saved from index.html',
+    '  --csv <file>                       one row per code: text[,filename]',
+    ''
+  ].join('\n'));
+  process.exit(code);
+}
+
+// ------------------------------------------------------------------ logo
+
+function resolveLogo(spec) {
+  if (!spec || spec === 'none') return { uri: null, inset: 1 };
+  if (spec === 'ink')   return { uri: LOGO.inkURI, inset: LOGO.inset };
+  if (spec === 'white') return { uri: LOGO.whiteURI, inset: LOGO.inset };
+  if (!fs.existsSync(spec)) fail('logo file not found: ' + spec);
+  var ext = path.extname(spec).toLowerCase();
+  var mime = ext === '.svg' ? 'image/svg+xml'
+           : ext === '.jpg' || ext === '.jpeg' ? 'image/jpeg'
+           : ext === '.webp' ? 'image/webp' : 'image/png';
+  return { uri: 'data:' + mime + ';base64,' + fs.readFileSync(spec).toString('base64'), inset: 1 };
+}
+
+/* index.html saves browser state keys; map them onto engine options. */
+function optsFromStateFile(file) {
+  var s = JSON.parse(fs.readFileSync(file, 'utf8'));
+  var lg = s.logoSrc === 'custom' ? null : s.logoSrc;
+  return {
+    text: s.text, surround: s.surround === 'bg' ? s.bg : s.surround, frame: s.frame, dot: s.dot, finder: s.finder, dotScale: s.dotScale,
+    frameGap: s.frameGap, frameStroke: s.frameStroke, quiet: s.quiet,
+    fg: s.fg, bg: s.bg, logo: lg, logoPct: s.logoPct, logoShape: s.logoShape,
+    logoPad: s.logoPad, label: s.label, px: s.px
+  };
+}
+
+// ----------------------------------------------------------------- render
+
+function generate(text, opts, outBase, cfg) {
+  var lg = resolveLogo(opts.logo === undefined ? 'ink' : opts.logo);
+  var o = Object.assign({}, opts, {
+    text: text, ecc: opts.ecc || 'H', logo: lg.uri, logoInset: lg.inset
+  });
+  delete o.out;
+
+  var model = ABQR.build(o);
+  var written = [];
+
+  if (cfg.svg) {
+    var svgPath = outBase + '.svg';
+    fs.writeFileSync(svgPath, ABQR.toSVG(model));
+    written.push(svgPath);
+  }
+  if (cfg.png) {
+    var r = ABQR.rasterize(model, model.opts.px, 2);
+    var pngPath = outBase + '.png';
+    fs.writeFileSync(pngPath, encodePNG(r.data, r.width, r.height));
+    written.push(pngPath);
+    if (o.label) {
+      model.warnings.push('PNG output has no label text (the CLI has no font engine) — use the SVG for that.');
+    }
+    if (lg.uri) {
+      model.warnings.push('PNG output draws the logo as a solid block — use the SVG for the real artwork.');
+    }
+  }
+
+  var verdict = null;
+  if (cfg.verify) {
+    if (!jsQR) fail('verification needs vendor/jsQR.js');
+    verdict = ABQR.selfTest(model, jsQR);
+  }
+
+  return { model: model, written: written, verdict: verdict };
+}
+
+// ------------------------------------------------------------------- main
+
+var argv = parseArgs(process.argv.slice(2));
+var baseOpts = argv.json ? Object.assign(optsFromStateFile(argv.json), argv.opts) : argv.opts;
+
+function log(s) { if (!argv.quietLog) process.stdout.write(s + '\n'); }
+
+function report(res, label) {
+  res.written.forEach(function (f) { log('  wrote    ' + f); });
+  res.model.warnings.forEach(function (w) { log('  warning  ' + w); });
+  if (res.verdict) {
+    var v = res.verdict;
+    var ok = v.pass === v.total && v.match;
+    log('  verify   ' + (ok ? 'PASS' : v.pass ? 'FRAGILE' : 'FAIL') +
+        ' (' + v.pass + '/' + v.total + ' scales)' + (v.match ? '' : ' — decoded text differs!'));
+    if (!ok) process.exitCode = 2;
+  }
+}
+
+function slug(t) {
+  return t.replace(/^https?:\/\//, '').replace(/[^a-zA-Z0-9]+/g, '-')
+          .replace(/^-|-$/g, '').slice(0, 48).toLowerCase() || 'kod';
+}
+
+if (argv.csv) {
+  var dir = argv.outdir || '.';
+  fs.mkdirSync(dir, { recursive: true });
+  var lines = fs.readFileSync(argv.csv, 'utf8').split(/\r?\n/).filter(function (l) { return l.trim(); });
+  log('processing ' + lines.length + ' rows -> ' + dir);
+  var failed = 0;
+  lines.forEach(function (line, i) {
+    var parts = line.split(',');
+    var text = parts[0].trim();
+    var name = (parts[1] || '').trim() || slug(text);
+    log('[' + (i + 1) + '/' + lines.length + '] ' + text.slice(0, 60));
+    try {
+      var res = generate(text, baseOpts, path.join(dir, name), argv);
+      report(res, name);
+      if (res.verdict && res.verdict.pass < res.verdict.total) failed++;
+    } catch (e) { log('  error    ' + e.message); failed++; }
+  });
+  if (failed) log('\n' + failed + ' row(s) need attention — see the warnings above.');
+} else {
+  var text = argv._[0] || (baseOpts.text || null);
+  if (!text) usage(1);
+  var base = argv.out ? argv.out.replace(/\.(svg|png)$/i, '')
+           : path.join(argv.outdir || '.', slug(text));
+  if (argv.outdir) fs.mkdirSync(argv.outdir, { recursive: true });
+  var res = generate(text, baseOpts, base, argv);
+  log('QR: ' + res.model.moduleCount + '×' + res.model.moduleCount +
+      ' modules (version ' + res.model.stats.version + ', ECC-' + res.model.opts.ecc + ')');
+  report(res);
+}

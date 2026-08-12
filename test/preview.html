@@ -1,0 +1,98 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>QR Studio — visual test board</title>
+<style>
+  body{margin:0;padding:24px;background:#F1F5F9;font:14px ui-sans-serif,-apple-system,Helvetica,Arial,sans-serif;color:#0C1B33}
+  h1{font-size:16px;margin:0 0 4px}
+  p.lead{color:#64748B;margin:0 0 20px}
+  .grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(230px,1fr));gap:16px}
+  .card{background:#fff;border:1px solid #E2E8F0;border-radius:12px;padding:14px;text-align:center}
+  .card svg,.card img{width:100%;height:auto;max-width:200px}
+  .cap{font-size:12px;color:#64748B;margin-top:8px;line-height:1.4}
+  .ok{color:#15803D;font-weight:600}
+  .bad{color:#BE123C;font-weight:600}
+</style>
+</head>
+<body>
+<h1>Visual test board</h1>
+<p class="lead">Every card goes through the same engine; the caption reports the jsQR decode test.
+   The <code>PNG</code> cards exercise the SVG&nbsp;→&nbsp;canvas export path with the real logo and label.</p>
+<div class="grid" id="grid"></div>
+
+<script src="../vendor/qrcode.js"></script>
+<script src="../vendor/jsQR.js"></script>
+<script src="../assets/logo.js"></script>
+<script src="../core.js"></script>
+<script>
+var URL_ = 'https://aobasar.com';
+var CASES = [
+  { t: 'circle + hex dots',     o: { frame:'circle', dot:'hex' } },
+  { t: 'circle + round dots',   o: { frame:'circle', dot:'circle' } },
+  { t: 'hexagon frame',         o: { frame:'hex',    dot:'hex' } },
+  { t: 'no frame',              o: { frame:'none',   dot:'hex' } },
+  { t: 'ring label',            o: { frame:'circle', dot:'hex', label:'AOBASAR.COM' } },
+  { t: 'hexagon + label',       o: { frame:'hex',    dot:'hex', label:'AOBASAR.COM' } },
+  { t: 'no frame + label',      o: { frame:'none',   dot:'hex', label:'AOBASAR.COM' } },
+  { t: 'inverted contrast',     o: { frame:'circle', dot:'hex', fg:'#FFFFFF', bg:'#0C1B33' } },
+  { t: 'cobalt',                o: { frame:'circle', dot:'hex', fg:'#2563EB' } },
+  { t: 'hexagonal finders',     o: { frame:'circle', dot:'hex', finder:'hex' } },
+  { t: 'no logo',               o: { frame:'circle', dot:'hex', noLogo:true } },
+  { t: 'oversized logo 30%',    o: { frame:'circle', dot:'hex', logoPct:0.30 } },
+  { t: 'PNG (canvas path)',     o: { frame:'circle', dot:'hex', label:'AOBASAR.COM' }, png:true },
+  { t: 'PNG hexagon frame',     o: { frame:'hex',    dot:'hex' }, png:true }
+];
+
+var grid = document.getElementById('grid');
+
+CASES.forEach(function (c) {
+  var opts = Object.assign({ text: URL_, logo: ABLOGO.inkURI, logoInset: ABLOGO.inset,
+                             logoPct: 0.22, logoShape: 'hex' }, c.o);
+  if (c.o.noLogo) { opts.logo = null; }
+  var card = document.createElement('div');
+  card.className = 'card';
+
+  var model, svg;
+  try { model = ABQR.build(opts); svg = ABQR.toSVG(model, 400); }
+  catch (e) {
+    card.innerHTML = '<div class="bad">ERROR: ' + e.message + '</div>';
+    grid.appendChild(card); return;
+  }
+
+  var host = document.createElement('div');
+  card.appendChild(host);
+  var cap = document.createElement('div');
+  cap.className = 'cap';
+  card.appendChild(cap);
+  grid.appendChild(card);
+
+  var t = ABQR.selfTest(model, jsQR, [380, 620, 900]);
+  cap.innerHTML = c.t + '<br><span class="' + (t.pass === t.total ? 'ok' : 'bad') + '">decode ' +
+                  t.pass + '/' + t.total + (t.match ? '' : ' · text mismatch') + '</span>';
+
+  if (!c.png) { host.innerHTML = svg; return; }
+
+  // exercise the exact export path index.html uses for PNG
+  var url = URL.createObjectURL(new Blob([svg], { type: 'image/svg+xml;charset=utf-8' }));
+  var img = new Image();
+  img.onload = function () {
+    var cv = document.createElement('canvas');
+    cv.width = 400; cv.height = Math.round(400 * model.box.h / model.box.w);
+    cv.getContext('2d').drawImage(img, 0, 0, cv.width, cv.height);
+    URL.revokeObjectURL(url);
+    try {
+      var out = new Image();
+      out.src = cv.toDataURL('image/png');   // throws if the canvas got tainted
+      host.appendChild(out);
+      cap.innerHTML += '<br><span class="ok">canvas → PNG ok</span>';
+    } catch (e) {
+      cap.innerHTML += '<br><span class="bad">canvas tainted: ' + e.message + '</span>';
+    }
+  };
+  img.onerror = function () { cap.innerHTML += '<br><span class="bad">SVG failed to load</span>'; };
+  img.src = url;
+});
+</script>
+</body>
+</html>

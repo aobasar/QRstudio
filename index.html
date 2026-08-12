@@ -1,0 +1,650 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>A·BASAR QR Studio</title>
+<meta name="description" content="Brand-aware QR code generator: standard ISO QR codes with hexagonal modules, circular or hexagonal frames, an embedded logo, and a built-in readability self-test.">
+<style>
+  :root{
+    --cobalt:#2563EB; --cobalt-hover:#1D4FD7; --cobalt-tint:#EAF1FE;
+    --ink:#0C1B33; --navy2:#16294A;
+    --surface:#fff; --subtle:#F1F5F9; --border:#E2E8F0; --border-strong:#CBD5E1;
+    --text:#0C1B33; --text-2:#64748B; --muted:#94A3B8;
+    --ok:#16A34A; --warn:#D97706; --danger:#E11D48;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;font:15px/1.5 ui-sans-serif,-apple-system,"Segoe UI",Helvetica,Arial,sans-serif;
+       color:var(--text);background:var(--subtle);-webkit-font-smoothing:antialiased}
+  header{background:var(--surface);border-bottom:1px solid var(--border);padding:14px 22px;
+         display:flex;align-items:center;gap:12px;position:sticky;top:0;z-index:10}
+  header img{width:28px;height:28px}
+  header h1{font-size:16px;margin:0;font-weight:650;letter-spacing:-.01em}
+  header .sub{color:var(--text-2);font-size:13px;margin-left:auto}
+  main{display:grid;grid-template-columns:minmax(320px,380px) 1fr;gap:22px;padding:22px;align-items:start}
+  @media (max-width:900px){main{grid-template-columns:1fr}}
+
+  .panel{background:var(--surface);border:1px solid var(--border);border-radius:14px;padding:18px}
+  .panel h2{font-size:12px;text-transform:uppercase;letter-spacing:.08em;color:var(--text-2);
+            margin:0 0 12px;font-weight:650}
+  .panel + .panel{margin-top:14px}
+
+  label{display:block;font-size:13px;font-weight:500;margin:12px 0 5px}
+  label:first-of-type{margin-top:0}
+  input[type=text],textarea,select{width:100%;height:40px;padding:9px 11px;border:1px solid var(--border);
+    border-radius:8px;background:var(--surface);color:var(--text);font:inherit;font-size:14px}
+  textarea{height:74px;resize:vertical;font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:13px}
+  input:focus,select:focus,textarea:focus{outline:none;border-color:var(--cobalt);
+    box-shadow:0 0 0 3px rgba(37,99,235,.16)}
+  input[type=range]{width:100%;accent-color:var(--cobalt);margin:4px 0}
+  input[type=color]{width:44px;height:34px;padding:2px;border:1px solid var(--border);border-radius:7px;background:none}
+
+  .row{display:flex;gap:10px}
+  .row > *{flex:1;min-width:0}
+  .seg{display:flex;border:1px solid var(--border);border-radius:9px;overflow:hidden}
+  .seg button{flex:1;border:0;background:var(--surface);padding:9px 4px;font:inherit;font-size:13px;
+    color:var(--text-2);cursor:pointer;border-right:1px solid var(--border)}
+  .seg button:last-child{border-right:0}
+  .seg button[aria-pressed=true]{background:var(--cobalt);color:#fff;font-weight:600}
+  .seg button:hover:not([aria-pressed=true]){background:var(--subtle)}
+
+  .val{float:right;color:var(--text-2);font-variant-numeric:tabular-nums;font-weight:400}
+  .hint{font-size:12px;color:var(--muted);margin-top:5px}
+
+  .btn{display:inline-flex;align-items:center;justify-content:center;gap:7px;height:42px;padding:0 16px;
+    border-radius:9px;border:1px solid transparent;font:inherit;font-weight:600;font-size:14px;cursor:pointer}
+  .btn-primary{background:var(--cobalt);color:#fff}
+  .btn-primary:hover{background:var(--cobalt-hover)}
+  .btn-secondary{background:var(--surface);color:var(--text);border-color:var(--border-strong)}
+  .btn-secondary:hover{background:var(--subtle)}
+  .btn:active{transform:scale(.985)}
+
+  #stage{background:var(--surface);border:1px solid var(--border);border-radius:14px;padding:26px;
+    display:flex;flex-direction:column;align-items:center;gap:18px;position:sticky;top:78px}
+  #preview{width:100%;max-width:440px;aspect-ratio:1;display:flex;align-items:center;justify-content:center}
+  #preview svg{width:100%;height:auto;max-height:440px}
+  .checker{background-image:linear-gradient(45deg,#eef2f7 25%,transparent 25%),
+    linear-gradient(-45deg,#eef2f7 25%,transparent 25%),linear-gradient(45deg,transparent 75%,#eef2f7 75%),
+    linear-gradient(-45deg,transparent 75%,#eef2f7 75%);background-size:16px 16px;
+    background-position:0 0,0 8px,8px -8px,-8px 0}
+
+  .meta{display:flex;gap:8px;flex-wrap:wrap;justify-content:center}
+  .chip{font-size:12px;padding:5px 11px;border-radius:99px;background:var(--subtle);
+    color:var(--text-2);font-weight:500}
+  .chip.ok{background:#ECFDF3;color:#15803D}
+  .chip.warn{background:#FFFBEB;color:#B45309}
+  .chip.bad{background:#FFF1F2;color:#BE123C}
+  .chip.busy{background:var(--cobalt-tint);color:var(--cobalt)}
+
+  .notes{width:100%;max-width:440px}
+  .note{font-size:13px;padding:10px 12px;border-radius:9px;background:#FFFBEB;color:#92400E;
+    border:1px solid #FDE68A;margin-top:8px}
+  .note.err{background:#FFF1F2;color:#9F1239;border-color:#FECDD3}
+
+  .drop{border:1.5px dashed var(--border-strong);border-radius:10px;padding:14px;text-align:center;
+    color:var(--text-2);font-size:13px;cursor:pointer;background:var(--subtle)}
+  .drop.over{border-color:var(--cobalt);background:var(--cobalt-tint);color:var(--cobalt)}
+  .drop img{max-height:40px;max-width:100%;display:block;margin:0 auto 6px}
+
+  .actions{display:flex;gap:10px;flex-wrap:wrap;justify-content:center;width:100%;max-width:440px}
+  .actions .btn{flex:1;min-width:130px}
+  details{margin-top:12px}
+  summary{cursor:pointer;font-size:13px;color:var(--text-2);font-weight:500;user-select:none}
+  summary:hover{color:var(--cobalt)}
+  code{font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:12px;background:var(--subtle);
+    padding:2px 5px;border-radius:5px}
+  pre{background:var(--ink);color:#CBD5E1;padding:12px;border-radius:9px;overflow-x:auto;font-size:12px;
+      line-height:1.5;margin:8px 0 0}
+  .presets{display:flex;gap:8px;flex-wrap:wrap}
+  .preset{border:1px solid var(--border);border-radius:8px;padding:7px 11px;background:var(--surface);
+    cursor:pointer;font:inherit;font-size:13px;display:flex;align-items:center;gap:7px}
+  .preset:hover{border-color:var(--cobalt);color:var(--cobalt)}
+  .sw{width:14px;height:14px;border-radius:4px;border:1px solid rgba(0,0,0,.12)}
+</style>
+</head>
+<body>
+
+<header>
+  <img id="brandmark" alt="A·BASAR">
+  <h1>A·BASAR QR Studio</h1>
+  <span class="sub">standard QR · ECC-H · fully offline</span>
+</header>
+
+<main>
+  <!-- ------------------------------------------------------------ controls -->
+  <div>
+    <section class="panel">
+      <h2>Content</h2>
+      <label for="text">Data to encode</label>
+      <textarea id="text" spellcheck="false">https://aobasar.com</textarea>
+      <div class="hint">URL, phone (<code>tel:</code>), wifi, vCard — whatever you type gets encoded. Keep it short: fewer modules means bigger dots and an easier scan.</div>
+
+      <label>Templates</label>
+      <div class="presets">
+        <button class="preset" data-tpl="https://aobasar.com">Website</button>
+        <button class="preset" data-tpl="tel:+90">Phone</button>
+        <button class="preset" data-tpl="mailto:ahmet@aobasar.com">Email</button>
+        <button class="preset" data-tpl="WIFI:T:WPA;S:NETWORK;P:PASSWORD;;">Wifi</button>
+      </div>
+    </section>
+
+    <section class="panel">
+      <h2>Shape</h2>
+
+      <label>Frame</label>
+      <div class="seg" id="frame">
+        <button data-v="none">None</button>
+        <button data-v="circle">Circle</button>
+        <button data-v="hex">Hexagon</button>
+      </div>
+
+      <label>Module shape</label>
+      <div class="seg" id="dot">
+        <button data-v="hex">Hexagon</button>
+        <button data-v="circle">Circle</button>
+        <button data-v="rounded">Rounded</button>
+        <button data-v="square">Square</button>
+      </div>
+
+      <label>Finder patterns</label>
+      <div class="seg" id="finder">
+        <button data-v="rounded">Rounded</button>
+        <button data-v="circle">Circle</button>
+        <button data-v="square">Square</button>
+        <button data-v="hex">Hexagon</button>
+      </div>
+      <div class="hint" id="finderHint"></div>
+
+      <label>Module size <span class="val" id="dotScaleV"></span></label>
+      <input type="range" id="dotScale" min="0.8" max="1.35" step="0.01">
+
+      <div id="frameOpts">
+        <label>Frame gap <span class="val" id="frameGapV"></span></label>
+        <input type="range" id="frameGap" min="0" max="6" step="0.1">
+        <label>Frame thickness <span class="val" id="frameStrokeV"></span></label>
+        <input type="range" id="frameStroke" min="0" max="3" step="0.1">
+      </div>
+      <div id="quietOpts">
+        <label>Quiet zone <span class="val" id="quietV"></span></label>
+        <input type="range" id="quiet" min="0" max="8" step="1">
+      </div>
+    </section>
+
+    <section class="panel">
+      <h2>Colour</h2>
+      <div class="presets" id="colorPresets"></div>
+      <div class="row" style="margin-top:12px">
+        <div>
+          <label for="fg">Modules</label>
+          <div class="row"><input type="color" id="fg"><input type="text" id="fgHex"></div>
+        </div>
+        <div>
+          <label for="bg">Background</label>
+          <div class="row"><input type="color" id="bg"><input type="text" id="bgHex"></div>
+        </div>
+      </div>
+      <div class="hint" id="contrastHint"></div>
+
+      <div id="surroundWrap">
+        <label>Outside the frame</label>
+        <div class="seg" id="surround">
+          <button data-v="transparent">Transparent</button>
+          <button data-v="bg">Background</button>
+          <button data-v="#FFFFFF">White</button>
+        </div>
+        <div class="hint">Transparent for stickers and print; white when you drop it onto a dark slide.</div>
+      </div>
+    </section>
+
+    <section class="panel">
+      <h2>Logo</h2>
+      <div class="seg" id="logoSrc">
+        <button data-v="ink">A·BASAR</button>
+        <button data-v="white">White</button>
+        <button data-v="custom">Custom</button>
+        <button data-v="none">None</button>
+      </div>
+
+      <div id="dropWrap" style="margin-top:10px">
+        <div class="drop" id="drop">
+          <div id="dropInner">Drop your logo here<br><span style="color:var(--muted)">or click — SVG / PNG</span></div>
+        </div>
+        <input type="file" id="file" accept="image/*" hidden>
+      </div>
+
+      <div id="logoOpts">
+        <label>Logo size <span class="val" id="logoPctV"></span></label>
+        <input type="range" id="logoPct" min="0.08" max="0.34" step="0.005">
+        <label>Backing plate</label>
+        <div class="seg" id="logoShape">
+          <button data-v="hex">Hexagon</button>
+          <button data-v="circle">Circle</button>
+          <button data-v="rounded">Square</button>
+          <button data-v="none">None</button>
+        </div>
+        <label>Plate padding <span class="val" id="logoPadV"></span></label>
+        <input type="range" id="logoPad" min="0" max="2" step="0.05">
+      </div>
+    </section>
+
+    <section class="panel">
+      <h2>Label and export</h2>
+      <label for="label">Frame label (optional)</label>
+      <input type="text" id="label" placeholder="e.g. AOBASAR.COM">
+      <div class="hint">On a circular frame the label curves along the ring; otherwise it sits below the code.</div>
+
+      <label>PNG size <span class="val" id="pxV"></span></label>
+      <input type="range" id="px" min="256" max="4096" step="128">
+
+      <details>
+        <summary>CLI command</summary>
+        <pre id="cli"></pre>
+        <button class="btn btn-secondary" id="copyCli" style="margin-top:8px;width:100%">Copy command</button>
+      </details>
+    </section>
+  </div>
+
+  <!-- ------------------------------------------------------------- preview -->
+  <div>
+    <div id="stage">
+      <div id="preview" class="checker"></div>
+
+      <div class="meta">
+        <span class="chip" id="chipVer">—</span>
+        <span class="chip" id="chipMod">—</span>
+        <span class="chip" id="chipHidden">—</span>
+        <span class="chip busy" id="chipTest">readability: pending</span>
+      </div>
+
+      <div class="actions">
+        <button class="btn btn-primary" id="dlSvg">Download SVG</button>
+        <button class="btn btn-primary" id="dlPng">Download PNG</button>
+        <button class="btn btn-secondary" id="saveJson">Save preset</button>
+        <button class="btn btn-secondary" id="loadJson">Load preset</button>
+      </div>
+      <input type="file" id="jsonFile" accept="application/json" hidden>
+
+      <div class="notes" id="notes"></div>
+    </div>
+  </div>
+</main>
+
+<script src="vendor/qrcode.js"></script>
+<script src="vendor/jsQR.js"></script>
+<script src="assets/logo.js"></script>
+<script src="core.js"></script>
+<script>
+(function () {
+  'use strict';
+  var $ = function (id) { return document.getElementById(id); };
+
+  document.getElementById('brandmark').src = ABLOGO.inkURI;
+
+  var COLOR_PRESETS = [
+    { name: 'Ink',    fg: '#0C1B33', bg: '#FFFFFF' },
+    { name: 'Cobalt', fg: '#2563EB', bg: '#FFFFFF' },
+    { name: 'Wash',   fg: '#0C1B33', bg: '#EAF1FE' },
+    { name: 'Navy',   fg: '#FFFFFF', bg: '#0C1B33' },
+    { name: 'Black',  fg: '#000000', bg: '#FFFFFF' }
+  ];
+
+  var state = {
+    text: 'https://aobasar.com',
+    frame: 'circle', dot: 'hex', finder: 'rounded',
+    dotScale: ABQR.DOT_SCALE.hex,
+    frameGap: 2.5, frameStroke: 0.9, quiet: 4,
+    fg: '#0C1B33', bg: '#FFFFFF', surround: 'transparent',
+    logoSrc: 'ink', customLogo: null,
+    logoPct: 0.22, logoShape: 'hex', logoPad: 0.6,
+    label: '', px: 1024
+  };
+
+  try {
+    var saved = localStorage.getItem('abqr.state');
+    if (saved) state = Object.assign(state, JSON.parse(saved));
+  } catch (e) { /* first run */ }
+
+  // ------------------------------------------------------------- ui wiring
+  function seg(id, key, after) {
+    $(id).addEventListener('click', function (e) {
+      var b = e.target.closest('button[data-v]');
+      if (!b) return;
+      state[key] = b.dataset.v;
+      if (after) after(b.dataset.v);
+      syncUI(); render();
+    });
+  }
+
+  function paintSeg(id, value) {
+    Array.prototype.forEach.call($(id).querySelectorAll('button[data-v]'), function (b) {
+      b.setAttribute('aria-pressed', String(b.dataset.v === value));
+    });
+  }
+
+  seg('frame', 'frame');
+  seg('dot', 'dot', function (v) { state.dotScale = ABQR.DOT_SCALE[v]; });
+  seg('finder', 'finder');
+  seg('logoShape', 'logoShape');
+  seg('logoSrc', 'logoSrc');
+  seg('surround', 'surround');
+
+  function slider(id, key, fmt) {
+    var el = $(id), out = $(id + 'V');
+    el.addEventListener('input', function () {
+      state[key] = parseFloat(el.value);
+      out.textContent = fmt(state[key]);
+      render();
+    });
+  }
+  var mod = function (v) { return v.toFixed(1) + ' mod'; };
+  slider('dotScale', 'dotScale', function (v) { return '×' + v.toFixed(2); });
+  slider('frameGap', 'frameGap', mod);
+  slider('frameStroke', 'frameStroke', mod);
+  slider('quiet', 'quiet', function (v) { return v.toFixed(0) + ' mod'; });
+  slider('logoPct', 'logoPct', function (v) { return Math.round(v * 100) + '%'; });
+  slider('logoPad', 'logoPad', mod);
+  slider('px', 'px', function (v) { return v + ' px'; });
+
+  $('text').addEventListener('input', function () { state.text = this.value; render(); });
+  $('label').addEventListener('input', function () { state.label = this.value; render(); });
+
+  Array.prototype.forEach.call(document.querySelectorAll('.preset[data-tpl]'), function (b) {
+    b.addEventListener('click', function () {
+      state.text = b.dataset.tpl; $('text').value = state.text; render();
+    });
+  });
+
+  var cp = $('colorPresets');
+  COLOR_PRESETS.forEach(function (p) {
+    var b = document.createElement('button');
+    b.className = 'preset';
+    b.innerHTML = '<span class="sw" style="background:' + p.fg + '"></span>' +
+                  '<span class="sw" style="background:' + p.bg + '"></span>' + p.name;
+    b.addEventListener('click', function () {
+      state.fg = p.fg; state.bg = p.bg; syncUI(); render();
+    });
+    cp.appendChild(b);
+  });
+
+  function colorPair(colorId, hexId, key) {
+    $(colorId).addEventListener('input', function () {
+      state[key] = this.value; $(hexId).value = this.value; render();
+    });
+    $(hexId).addEventListener('change', function () {
+      var v = this.value.trim();
+      if (/^#?[0-9a-fA-F]{6}$/.test(v)) {
+        state[key] = v[0] === '#' ? v : '#' + v;
+        $(colorId).value = state[key]; render();
+      } else { this.value = state[key]; }
+    });
+  }
+  colorPair('fg', 'fgHex', 'fg');
+  colorPair('bg', 'bgHex', 'bg');
+
+  // ------------------------------------------------------------ logo input
+  var drop = $('drop'), file = $('file');
+  drop.addEventListener('click', function () { file.click(); });
+  file.addEventListener('change', function () { if (this.files[0]) readLogo(this.files[0]); });
+  ['dragenter', 'dragover'].forEach(function (ev) {
+    drop.addEventListener(ev, function (e) { e.preventDefault(); drop.classList.add('over'); });
+  });
+  ['dragleave', 'drop'].forEach(function (ev) {
+    drop.addEventListener(ev, function (e) { e.preventDefault(); drop.classList.remove('over'); });
+  });
+  drop.addEventListener('drop', function (e) {
+    if (e.dataTransfer.files[0]) readLogo(e.dataTransfer.files[0]);
+  });
+
+  function readLogo(f) {
+    var r = new FileReader();
+    r.onload = function () {
+      state.customLogo = r.result;
+      state.logoSrc = 'custom';
+      syncUI(); render();
+    };
+    r.readAsDataURL(f);
+  }
+
+  // ------------------------------------------------------------- rendering
+  function currentOpts() {
+    var logo = null, inset = 1;
+    if (state.logoSrc === 'ink')        { logo = ABLOGO.inkURI;   inset = ABLOGO.inset; }
+    else if (state.logoSrc === 'white') { logo = ABLOGO.whiteURI; inset = ABLOGO.inset; }
+    else if (state.logoSrc === 'custom' && state.customLogo) { logo = state.customLogo; }
+
+    return {
+      text: state.text || ' ',
+      ecc: 'H',
+      dot: state.dot, dotScale: state.dotScale, finder: state.finder,
+      frame: state.frame, frameGap: state.frameGap, frameStroke: state.frameStroke,
+      quiet: state.quiet,
+      fg: state.fg, bg: state.bg,
+      surround: state.surround === 'bg' ? state.bg : state.surround,
+      logo: logo, logoPct: state.logoPct, logoShape: state.logoShape,
+      logoPad: state.logoPad, logoInset: inset,
+      label: state.label, px: state.px
+    };
+  }
+
+  var model = null, testTimer = null;
+
+  function render() {
+    try { model = ABQR.build(currentOpts()); }
+    catch (err) {
+      $('notes').innerHTML = '<div class="note err">⚠ ' + err.message + '</div>';
+      return;
+    }
+
+    $('preview').innerHTML = ABQR.toSVG(model, 440);
+    $('preview').classList.toggle('checker',
+      state.frame !== 'none' && state.surround === 'transparent');
+
+    $('chipVer').textContent = 'version ' + model.stats.version;
+    $('chipMod').textContent = model.moduleCount + '×' + model.moduleCount + ' modules';
+    $('chipHidden').textContent = (model.stats.hiddenPct * 100).toFixed(1) + '% covered';
+
+    $('notes').innerHTML = model.warnings.map(function (w) {
+      return '<div class="note">⚠ ' + w + '</div>';
+    }).join('');
+
+    $('finderHint').textContent = state.finder === 'hex'
+      ? 'Hexagonal finders break the 1:1:3:1:1 ratio scanners look for — watch the readability badge.'
+      : '';
+
+    updateCli();
+    try { localStorage.setItem('abqr.state', JSON.stringify(state)); } catch (e) {}
+
+    // the self-test rasterises three times, so keep it off the typing path
+    $('chipTest').className = 'chip busy';
+    $('chipTest').textContent = 'readability: testing…';
+    clearTimeout(testTimer);
+    testTimer = setTimeout(runTest, 260);
+  }
+
+  function runTest() {
+    if (!model) return;
+    var t;
+    try { t = ABQR.selfTest(model, jsQR, [380, 620, 900]); }
+    catch (e) {
+      $('chipTest').className = 'chip bad';
+      $('chipTest').textContent = 'test failed';
+      return;
+    }
+
+    var chip = $('chipTest');
+    if (t.pass === t.total && t.match) {
+      chip.className = 'chip ok';
+      chip.textContent = '✓ readable (' + t.pass + '/' + t.total + ' scales)';
+    } else if (t.pass > 0) {
+      chip.className = 'chip warn';
+      chip.textContent = '⚠ fragile (' + t.pass + '/' + t.total + ' scales)';
+    } else {
+      chip.className = 'chip bad';
+      chip.textContent = '✕ did not decode';
+    }
+    if (t.pass < t.total) {
+      $('notes').insertAdjacentHTML('beforeend',
+        '<div class="note">⚠ This combination did not decode at every scale. Increase the module size, ' +
+        'shrink the logo, or shorten the payload — and always test on a real phone before printing.</div>');
+    }
+  }
+
+  // ------------------------------------------------------------ ui refresh
+  function syncUI() {
+    $('text').value = state.text;
+    $('label').value = state.label;
+    paintSeg('frame', state.frame);
+    paintSeg('dot', state.dot);
+    paintSeg('finder', state.finder);
+    paintSeg('logoShape', state.logoShape);
+    paintSeg('logoSrc', state.logoSrc);
+    paintSeg('surround', state.surround);
+
+    [['dotScale', '×' + state.dotScale.toFixed(2)],
+     ['frameGap', state.frameGap.toFixed(1) + ' mod'],
+     ['frameStroke', state.frameStroke.toFixed(1) + ' mod'],
+     ['quiet', state.quiet + ' mod'],
+     ['logoPct', Math.round(state.logoPct * 100) + '%'],
+     ['logoPad', state.logoPad.toFixed(1) + ' mod'],
+     ['px', state.px + ' px']].forEach(function (p) {
+      $(p[0]).value = state[p[0]];
+      $(p[0] + 'V').textContent = p[1];
+    });
+
+    $('fg').value = state.fg; $('fgHex').value = state.fg;
+    $('bg').value = state.bg; $('bgHex').value = state.bg;
+
+    $('frameOpts').style.display = state.frame === 'none' ? 'none' : '';
+    $('surroundWrap').style.display = state.frame === 'none' ? 'none' : '';
+    $('quietOpts').style.display = state.frame === 'none' ? '' : 'none';
+    $('dropWrap').style.display = state.logoSrc === 'custom' ? '' : 'none';
+    $('logoOpts').style.display = state.logoSrc === 'none' ? 'none' : '';
+
+    if (state.logoSrc === 'custom' && state.customLogo) {
+      $('dropInner').innerHTML = '<img src="' + state.customLogo + '" alt="">click to replace';
+    }
+
+    $('contrastHint').textContent = contrastNote(state.fg, state.bg);
+  }
+
+  // Relative luminance contrast — scanners need tonal difference, not hue.
+  function lum(hex) {
+    var c = hex.replace('#', '');
+    var v = [0, 2, 4].map(function (i) {
+      var x = parseInt(c.substr(i, 2), 16) / 255;
+      return x <= 0.03928 ? x / 12.92 : Math.pow((x + 0.055) / 1.055, 2.4);
+    });
+    return 0.2126 * v[0] + 0.7152 * v[1] + 0.0722 * v[2];
+  }
+  function contrastNote(fg, bg) {
+    var a = lum(fg), b = lum(bg);
+    var r = (Math.max(a, b) + 0.05) / (Math.min(a, b) + 0.05);
+    var s = 'contrast ' + r.toFixed(1) + ':1 — ';
+    if (r < 3) return s + 'too low, scanners will fail (aim for 4:1 or more).';
+    if (r < 4) return s + 'borderline; risky in print.';
+    if (a > b) return s + 'inverted (light on dark) — some older scanners refuse this.';
+    return s + 'good.';
+  }
+
+  // ---------------------------------------------------------------- export
+  function svgBlobUrl(px) {
+    var svg = ABQR.toSVG(model, px || state.px);
+    return URL.createObjectURL(new Blob([svg], { type: 'image/svg+xml;charset=utf-8' }));
+  }
+
+  function download(url, name) {
+    var a = document.createElement('a');
+    a.href = url; a.download = name;
+    document.body.appendChild(a); a.click(); a.remove();
+  }
+
+  function fileBase() {
+    var t = (state.text || 'qr').replace(/^https?:\/\//, '').replace(/[^a-zA-Z0-9]+/g, '-')
+              .replace(/^-|-$/g, '').slice(0, 40).toLowerCase();
+    return 'abqr-' + (t || 'code');
+  }
+
+  $('dlSvg').addEventListener('click', function () {
+    var url = svgBlobUrl(state.px);
+    download(url, fileBase() + '.svg');
+    setTimeout(function () { URL.revokeObjectURL(url); }, 1000);
+  });
+
+  $('dlPng').addEventListener('click', function () {
+    var px = state.px;
+    var url = svgBlobUrl(px);
+    var img = new Image();
+    img.onload = function () {
+      var cv = document.createElement('canvas');
+      cv.width = px;
+      cv.height = Math.round(px * model.box.h / model.box.w);
+      cv.getContext('2d').drawImage(img, 0, 0, cv.width, cv.height);
+      URL.revokeObjectURL(url);
+      cv.toBlob(function (blob) {
+        var u = URL.createObjectURL(blob);
+        download(u, fileBase() + '-' + px + '.png');
+        setTimeout(function () { URL.revokeObjectURL(u); }, 1000);
+      }, 'image/png');
+    };
+    img.onerror = function () {
+      URL.revokeObjectURL(url);
+      alert('Could not rasterise to PNG. Download the SVG and convert it instead.');
+    };
+    img.src = url;
+  });
+
+  $('saveJson').addEventListener('click', function () {
+    var blob = new Blob([JSON.stringify(state, null, 2)], { type: 'application/json' });
+    var u = URL.createObjectURL(blob);
+    download(u, fileBase() + '-preset.json');
+    setTimeout(function () { URL.revokeObjectURL(u); }, 1000);
+  });
+
+  $('loadJson').addEventListener('click', function () { $('jsonFile').click(); });
+  $('jsonFile').addEventListener('change', function () {
+    var f = this.files[0];
+    if (!f) return;
+    var r = new FileReader();
+    r.onload = function () {
+      try { state = Object.assign(state, JSON.parse(r.result)); syncUI(); render(); }
+      catch (e) { alert('Could not read that preset file.'); }
+    };
+    r.readAsText(f);
+  });
+
+  function updateCli() {
+    var q = function (s) { return "'" + String(s).replace(/'/g, "'\\''") + "'"; };
+    var parts = ['./qrgen', q(state.text),
+      '--frame ' + state.frame, '--dot ' + state.dot, '--finder ' + state.finder,
+      '--dot-scale ' + state.dotScale.toFixed(2),
+      '--fg ' + state.fg, '--bg ' + state.bg];
+    if (state.frame === 'none') parts.push('--quiet ' + state.quiet);
+    else parts.push('--frame-gap ' + state.frameGap, '--frame-stroke ' + state.frameStroke,
+                    '--surround ' + (state.surround === 'bg' ? state.bg : state.surround));
+    if (state.logoSrc === 'ink' || state.logoSrc === 'white') {
+      parts.push('--logo ' + state.logoSrc, '--logo-pct ' + state.logoPct.toFixed(3),
+                 '--logo-shape ' + state.logoShape, '--logo-pad ' + state.logoPad);
+    } else if (state.logoSrc === 'custom') {
+      parts.push('--logo logo.svg', '--logo-pct ' + state.logoPct.toFixed(3),
+                 '--logo-shape ' + state.logoShape);
+    } else {
+      parts.push('--logo none');
+    }
+    if (state.label) parts.push('--label ' + q(state.label));
+    parts.push('--px ' + state.px, '--out ' + fileBase() + '.svg');
+    $('cli').textContent = parts.join(' \\\n  ');
+  }
+
+  $('copyCli').addEventListener('click', function () {
+    navigator.clipboard.writeText($('cli').textContent).then(function () {
+      $('copyCli').textContent = 'Copied ✓';
+      setTimeout(function () { $('copyCli').textContent = 'Copy command'; }, 1400);
+    });
+  });
+
+  syncUI();
+  render();
+})();
+</script>
+</body>
+</html>

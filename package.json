@@ -1,0 +1,32 @@
+{
+  "name": "abqr-studio",
+  "version": "1.0.0",
+  "description": "Brand-aware QR code generator with a built-in readability self-test: hexagonal modules, circular or hexagonal frames, embedded logo, SVG and PNG output.",
+  "main": "core.js",
+  "scripts": {
+    "test": "node test/sweep.js"
+  },
+  "keywords": [
+    "qr",
+    "qrcode",
+    "svg",
+    "brand",
+    "generator",
+    "design"
+  ],
+  "author": "Ahmet Başar <9959180+aobasar@users.noreply.github.com>",
+  "license": "MIT",
+  "type": "commonjs",
+  "dependencies": {
+    "jsqr": "^1.4.0",
+    "qrcode-generator": "^2.0.4"
+  },
+  "bin": {
+    "qrgen": "./qrgen"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/aobasar/QRstudio.git"
+  },
+  "homepage": "https://aobasar.github.io/QRstudio/"
+}
