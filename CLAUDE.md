@@ -57,6 +57,8 @@ sweep, not an argument:
 ```bash
 node test/sweep.js        # exits 1 if any combination is unreadable
 open test/preview.html    # visual check, also covers the PNG export path
+
+./scripts/serve.sh        # dev server on 9060 (localhost + LAN), no-cache
 ```
 
 The sweep takes a few minutes. Run it before claiming a rendering change is

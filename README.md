@@ -57,6 +57,17 @@ Open `index.html`. No build step, no server, no network access — the QR encode
 the decoder used for testing, and the brand mark are all vendored into the repo.
 Nothing you type leaves the machine.
 
+To reach the page from a phone — the only real way to test a QR code, with a
+real camera against a real screen — serve it instead:
+
+```bash
+./scripts/serve.sh          # http://localhost:9060, plus the LAN address
+```
+
+The script prints the LAN URL, refuses to start on a second port if 9060 is
+taken, and disables caching so an edited `core.js` is never served from the
+browser's copy. Read the comments in it before simplifying anything away.
+
 - **Content** — URL, `tel:`, `mailto:`, wifi, vCard. Shorter payloads mean fewer
   modules, bigger dots, and longer scan range.
 - **Shape** — frame (none / circle / hexagon), module shape, finder patterns.
