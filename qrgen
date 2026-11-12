@@ -68,8 +68,8 @@ function usage(code) {
     '  ./qrgen --csv <file.csv> --outdir <dir> [options]',
     '',
     'Shape:',
-    '  --frame none|circle|hex            frame type (default: circle)',
-    '  --dot hex|circle|rounded|square    module shape (default: hex)',
+    '  --frame none|circle|hex            frame type (default: none)',
+    '  --dot hex|circle|rounded|square    module shape (default: circle)',
     '  --finder rounded|circle|square|hex finder patterns (default: rounded)',
     '  --dot-scale <n>                    module size multiplier (1.15 for hex)',
     '  --frame-gap <n>                    clearance between code and frame, modules',
@@ -82,7 +82,7 @@ function usage(code) {
     '  --surround <hex>|transparent       outside the frame (default: transparent)',
     '',
     'Logo:',
-    '  --logo ink|white|none|<file>       embedded mark, off, or your own file',
+    '  --logo ink|white|none|<file>       embedded mark, off, or your own file (default: none)',
     '  --logo-pct <0-0.34>                logo width relative to the code side',
     '  --logo-shape hex|circle|rounded|none',
     '  --logo-pad <n>                     padding around the backing plate, modules',
@@ -131,7 +131,7 @@ function optsFromStateFile(file) {
 // ----------------------------------------------------------------- render
 
 function generate(text, opts, outBase, cfg) {
-  var lg = resolveLogo(opts.logo === undefined ? 'ink' : opts.logo);
+  var lg = resolveLogo(opts.logo === undefined ? 'none' : opts.logo);
   var o = Object.assign({}, opts, {
     text: text, ecc: opts.ecc || 'H', logo: lg.uri, logoInset: lg.inset
   });

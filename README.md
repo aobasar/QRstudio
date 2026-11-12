@@ -68,9 +68,11 @@ The script prints the LAN URL, refuses to start on a second port if 9060 is
 taken, and disables caching so an edited `core.js` is never served from the
 browser's copy. Read the comments in it before simplifying anything away.
 
-- **Content** — URL, `tel:`, `mailto:`, wifi, vCard. Shorter payloads mean fewer
-  modules, bigger dots, and longer scan range.
+- **Content** — URL, `tel:`, `mailto:`, wifi, vCard. The vCard template opens a
+  contact form that writes a vCard 3.0 payload, leaving empty fields out. Shorter
+  payloads mean fewer modules, bigger dots, and longer scan range.
 - **Shape** — frame (none / circle / hexagon), module shape, finder patterns.
+  Defaults: no frame, circular modules, rounded finders, no logo.
 - **Colour** — brand palette presets, with a live contrast ratio. Scanners need
   tonal difference, not hue, so the hint calls out anything under 4:1.
 - **Logo** — the embedded A·BASAR mark, or drag in your own SVG/PNG.
@@ -78,6 +80,8 @@ browser's copy. Read the comments in it before simplifying anything away.
 
 `Save preset` writes the current design as JSON; the `CLI command` section prints
 the exact command that reproduces it.
+The last design is remembered in the browser; `Reset style to defaults` goes back
+to the defaults and keeps the content.
 
 ## CLI
 

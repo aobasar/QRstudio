@@ -26,11 +26,11 @@
     ecc: 'H',              // L | M | Q | H  — H is required if you want a logo
     minVersion: 0,         // 0 = auto
 
-    dot: 'hex',            // hex | circle | rounded | square
+    dot: 'circle',         // hex | circle | rounded | square
     dotScale: 0,           // 0 = per-style default
     finder: 'rounded',     // hex | circle | rounded | square
 
-    frame: 'circle',       // none | circle | hex
+    frame: 'none',         // none | circle | hex
     frameGap: 2.5,         // modules of clearance between QR corner and frame
     frameStroke: 0.9,      // modules; 0 = no outline
     frameFill: '',         // '' = use bg
@@ -517,6 +517,42 @@
     };
   }
 
+  // ----------------------------------------------------------------- vCard
+
+  var VCARD_FIELDS = ['first', 'last', 'org', 'title', 'cell', 'work', 'email', 'url',
+                      'street', 'city', 'region', 'zip', 'country'];
+
+  /* vCard 3.0 text values escape backslash, comma, semicolon and newline. */
+  function vcEsc(s) {
+    return String(s).replace(/\\/g, '\\\\').replace(/\r?\n/g, '\\n')
+                    .replace(/,/g, '\\,').replace(/;/g, '\\;');
+  }
+
+  /**
+   * Build a vCard 3.0 payload from a flat field object (keys: VCARD_FIELDS).
+   * Version 3.0 because the built-in iOS and Android camera apps read it most
+   * reliably. Empty fields are left out entirely: every byte costs modules.
+   * Lines end in LF rather than the spec's CRLF; the browser textarea
+   * normalises to LF anyway and phone readers accept both.
+   */
+  function vcard(f) {
+    var v = function (k) { return String((f && f[k]) || '').trim(); };
+    var fn = [v('first'), v('last')].filter(Boolean).join(' ') || v('org');
+    var lines = ['BEGIN:VCARD', 'VERSION:3.0',
+                 'N:' + vcEsc(v('last')) + ';' + vcEsc(v('first')) + ';;;',
+                 'FN:' + vcEsc(fn)];
+    if (v('org'))   lines.push('ORG:' + vcEsc(v('org')));
+    if (v('title')) lines.push('TITLE:' + vcEsc(v('title')));
+    if (v('cell'))  lines.push('TEL;TYPE=CELL:' + vcEsc(v('cell')));
+    if (v('work'))  lines.push('TEL;TYPE=WORK:' + vcEsc(v('work')));
+    if (v('email')) lines.push('EMAIL:' + vcEsc(v('email')));
+    if (v('url'))   lines.push('URL:' + v('url'));      // a URI value is not escaped
+    var adr = ['street', 'city', 'region', 'zip', 'country'].map(v);
+    if (adr.some(Boolean)) lines.push('ADR:;;' + adr.map(vcEsc).join(';'));
+    lines.push('END:VCARD');
+    return lines.join('\n');
+  }
+
   return {
     DEFAULTS: DEFAULTS,
     DOT_SCALE: DOT_SCALE,
@@ -524,6 +560,8 @@
     toSVG: toSVG,
     rasterize: rasterize,
     selfTest: selfTest,
+    vcard: vcard,
+    VCARD_FIELDS: VCARD_FIELDS,
     hexPts: hexPts
   };
 });

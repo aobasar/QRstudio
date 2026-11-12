@@ -100,6 +100,13 @@
     cursor:pointer;font:inherit;font-size:13px;display:flex;align-items:center;gap:7px}
   .preset:hover{border-color:var(--cobalt);color:var(--cobalt)}
   .sw{width:14px;height:14px;border-radius:4px;border:1px solid rgba(0,0,0,.12)}
+  .preset[aria-pressed=true]{border-color:var(--cobalt);color:var(--cobalt);background:var(--cobalt-tint)}
+  .subform{margin-top:14px;padding-top:2px;border-top:1px solid var(--border)}
+  .subform label{margin-top:10px}
+  .linkbtn{border:0;background:none;padding:4px 6px;font:inherit;font-size:13px;color:var(--text-2);
+    cursor:pointer;text-decoration:underline;text-underline-offset:3px}
+  .linkbtn:hover{color:var(--cobalt)}
+
 </style>
 </head>
 <body>
@@ -125,6 +132,38 @@
         <button class="preset" data-tpl="tel:+90">Phone</button>
         <button class="preset" data-tpl="mailto:ahmet@aobasar.com">Email</button>
         <button class="preset" data-tpl="WIFI:T:WPA;S:NETWORK;P:PASSWORD;;">Wifi</button>
+        <button class="preset" id="vcardBtn" aria-pressed="false">vCard</button>
+      </div>
+
+      <div class="subform" id="vcardForm" hidden>
+        <div class="row">
+          <div><label for="vc-first">First name</label><input type="text" id="vc-first" data-vc="first" autocomplete="given-name"></div>
+          <div><label for="vc-last">Last name</label><input type="text" id="vc-last" data-vc="last" autocomplete="family-name"></div>
+        </div>
+        <div class="row">
+          <div><label for="vc-org">Organization</label><input type="text" id="vc-org" data-vc="org" autocomplete="organization"></div>
+          <div><label for="vc-title">Job title</label><input type="text" id="vc-title" data-vc="title" autocomplete="organization-title"></div>
+        </div>
+        <div class="row">
+          <div><label for="vc-cell">Mobile</label><input type="text" id="vc-cell" data-vc="cell" inputmode="tel" autocomplete="tel"></div>
+          <div><label for="vc-work">Work phone</label><input type="text" id="vc-work" data-vc="work" inputmode="tel"></div>
+        </div>
+        <label for="vc-email">Email</label>
+        <input type="text" id="vc-email" data-vc="email" inputmode="email" autocomplete="email">
+        <label for="vc-url">Website</label>
+        <input type="text" id="vc-url" data-vc="url" inputmode="url" autocomplete="url" placeholder="https://">
+        <label for="vc-street">Street address</label>
+        <input type="text" id="vc-street" data-vc="street" autocomplete="street-address">
+        <div class="row">
+          <div><label for="vc-city">City</label><input type="text" id="vc-city" data-vc="city" autocomplete="address-level2"></div>
+          <div><label for="vc-region">State / region</label><input type="text" id="vc-region" data-vc="region" autocomplete="address-level1"></div>
+        </div>
+        <div class="row">
+          <div><label for="vc-zip">Postal code</label><input type="text" id="vc-zip" data-vc="zip" autocomplete="postal-code"></div>
+          <div><label for="vc-country">Country</label><input type="text" id="vc-country" data-vc="country" autocomplete="country-name"></div>
+        </div>
+        <div class="hint">Builds a vCard 3.0 contact card into the text above. Empty fields are left out, and
+          every field you add makes the code denser — the essentials scan best.</div>
       </div>
     </section>
 
@@ -263,6 +302,7 @@
         <button class="btn btn-secondary" id="loadJson">Load preset</button>
       </div>
       <input type="file" id="jsonFile" accept="application/json" hidden>
+      <button class="linkbtn" id="resetBtn">Reset style to defaults</button>
 
       <div class="notes" id="notes"></div>
     </div>
@@ -288,16 +328,21 @@
     { name: 'Black',  fg: '#000000', bg: '#FFFFFF' }
   ];
 
-  var state = {
+  var DEFAULT_STATE = {
     text: 'https://aobasar.com',
-    frame: 'circle', dot: 'hex', finder: 'rounded',
-    dotScale: ABQR.DOT_SCALE.hex,
+    frame: 'none', dot: 'circle', finder: 'rounded',
+    dotScale: ABQR.DOT_SCALE.circle,
     frameGap: 2.5, frameStroke: 0.9, quiet: 4,
     fg: '#0C1B33', bg: '#FFFFFF', surround: 'transparent',
-    logoSrc: 'ink', customLogo: null,
+    logoSrc: 'none', customLogo: null,
     logoPct: 0.22, logoShape: 'hex', logoPad: 0.6,
-    label: '', px: 1024
+    label: '', px: 1024,
+    vcard: {}
   };
+  ABQR.VCARD_FIELDS.forEach(function (k) { DEFAULT_STATE.vcard[k] = ''; });
+  function freshState() { return JSON.parse(JSON.stringify(DEFAULT_STATE)); }
+
+  var state = freshState();
 
   try {
     var saved = localStorage.getItem('abqr.state');
@@ -350,8 +395,38 @@
 
   Array.prototype.forEach.call(document.querySelectorAll('.preset[data-tpl]'), function (b) {
     b.addEventListener('click', function () {
-      state.text = b.dataset.tpl; $('text').value = state.text; render();
+      state.text = b.dataset.tpl; $('text').value = state.text;
+      vcardOpen = false; syncUI(); render();
     });
+  });
+
+  // ---------------------------------------------------------------- vCard
+  // The form writes into the same text the textarea edits, so the payload is
+  // always visible and still hand-editable. Typing in a field rewrites it.
+  var vcardOpen = /^BEGIN:VCARD/i.test(state.text);
+
+  $('vcardBtn').addEventListener('click', function () {
+    vcardOpen = !vcardOpen;
+    if (vcardOpen) state.text = ABQR.vcard(state.vcard);
+    syncUI(); render();
+  });
+
+  Array.prototype.forEach.call(document.querySelectorAll('[data-vc]'), function (el) {
+    el.addEventListener('input', function () {
+      state.vcard[el.dataset.vc] = el.value;
+      state.text = ABQR.vcard(state.vcard);
+      $('text').value = state.text;
+      render();
+    });
+  });
+
+  // Saved state outlives a change of defaults, so this is the way back to them.
+  // Content (the text and the vCard fields) is kept: only the look resets.
+  $('resetBtn').addEventListener('click', function () {
+    if (!confirm('Reset frame, shape, colour, logo and export settings to their defaults?')) return;
+    var keep = { text: state.text, vcard: state.vcard, customLogo: state.customLogo };
+    state = Object.assign(freshState(), keep);
+    syncUI(); render();
   });
 
   var cp = $('colorPresets');
@@ -525,6 +600,12 @@
     }
 
     $('contrastHint').textContent = contrastNote(state.fg, state.bg);
+
+    $('vcardForm').hidden = !vcardOpen;
+    $('vcardBtn').setAttribute('aria-pressed', String(vcardOpen));
+    Array.prototype.forEach.call(document.querySelectorAll('[data-vc]'), function (el) {
+      el.value = (state.vcard && state.vcard[el.dataset.vc]) || '';
+    });
   }
 
   // Relative luminance contrast — scanners need tonal difference, not hue.
