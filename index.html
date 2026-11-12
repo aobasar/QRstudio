@@ -107,6 +107,38 @@
     cursor:pointer;text-decoration:underline;text-underline-offset:3px}
   .linkbtn:hover{color:var(--cobalt)}
 
+  /* collapsible panels: the header is the toggle; a closed panel shows a summary */
+  .ctl-bar{display:flex;justify-content:flex-end;margin:-6px 0 6px}
+  .panel h2{margin:0}
+  .ph{display:flex;align-items:center;gap:8px;width:100%;padding:0;border:0;background:none;cursor:pointer;
+    font:inherit;color:inherit;text-transform:inherit;letter-spacing:inherit;text-align:left}
+  .ph:hover{color:var(--cobalt)}
+  .ph:focus-visible{outline:2px solid var(--cobalt);outline-offset:4px;border-radius:4px}
+  .chev{width:7px;height:7px;flex:none;border-right:1.6px solid currentColor;border-bottom:1.6px solid currentColor;
+    transform:rotate(45deg) translate(-2px,-2px)}
+  .panel.collapsed .chev{transform:rotate(-45deg)}
+  .ph-sum{margin-left:auto;min-width:0;overflow:hidden;white-space:nowrap;text-overflow:ellipsis;
+    text-transform:none;letter-spacing:0;font-weight:500;color:var(--muted)}
+  .panel:not(.collapsed) .ph-sum{display:none}
+  .pb{padding-top:12px}
+  .panel.collapsed .pb{display:none}
+  .panel.collapsed{padding-top:14px;padding-bottom:14px}
+
+  /* Desktop with room to spare: the page stops scrolling, the controls scroll on
+     their own and the preview never moves. The preview shrinks with the window
+     height so the download buttons stay on screen. Shorter windows fall back to
+     ordinary page scrolling with a sticky preview. */
+  @media (min-width:901px) and (min-height:640px){
+    body{height:100vh;display:flex;flex-direction:column;overflow:hidden}
+    header{flex:none}
+    main{flex:1;min-height:0;grid-template-rows:minmax(0,1fr);padding-bottom:0}
+    #controls,#stageCol{align-self:stretch;min-height:0;overflow-y:auto;overscroll-behavior:contain;
+      padding-bottom:22px;scrollbar-width:thin}
+    #controls{padding-right:6px;margin-right:-6px;scrollbar-gutter:stable}
+    #stage{position:static}
+    #preview{max-width:min(440px,calc(100vh - 370px))}
+    #preview svg{max-height:min(440px,calc(100vh - 370px))}
+  }
 </style>
 </head>
 <body>
@@ -119,9 +151,11 @@
 
 <main>
   <!-- ------------------------------------------------------------ controls -->
-  <div>
-    <section class="panel">
-      <h2>Content</h2>
+  <div id="controls">
+    <div class="ctl-bar"><button class="linkbtn" id="toggleAll">Collapse all</button></div>
+    <section class="panel" data-panel="content">
+      <h2><button type="button" class="ph" aria-expanded="true" aria-controls="pb-content"><span class="chev" aria-hidden="true"></span><span>Content</span><span class="ph-sum" id="sum-content"></span></button></h2>
+      <div class="pb" id="pb-content">
       <label for="text">Data to encode</label>
       <textarea id="text" spellcheck="false">https://aobasar.com</textarea>
       <div class="hint">URL, phone (<code>tel:</code>), wifi, vCard — whatever you type gets encoded. Keep it short: fewer modules means bigger dots and an easier scan.</div>
@@ -165,10 +199,12 @@
         <div class="hint">Builds a vCard 3.0 contact card into the text above. Empty fields are left out, and
           every field you add makes the code denser — the essentials scan best.</div>
       </div>
+      </div>
     </section>
 
-    <section class="panel">
-      <h2>Shape</h2>
+    <section class="panel" data-panel="shape">
+      <h2><button type="button" class="ph" aria-expanded="true" aria-controls="pb-shape"><span class="chev" aria-hidden="true"></span><span>Shape</span><span class="ph-sum" id="sum-shape"></span></button></h2>
+      <div class="pb" id="pb-shape">
 
       <label>Frame</label>
       <div class="seg" id="frame">
@@ -207,10 +243,12 @@
         <label>Quiet zone <span class="val" id="quietV"></span></label>
         <input type="range" id="quiet" min="0" max="8" step="1">
       </div>
+      </div>
     </section>
 
-    <section class="panel">
-      <h2>Colour</h2>
+    <section class="panel" data-panel="colour">
+      <h2><button type="button" class="ph" aria-expanded="true" aria-controls="pb-colour"><span class="chev" aria-hidden="true"></span><span>Colour</span><span class="ph-sum" id="sum-colour"></span></button></h2>
+      <div class="pb" id="pb-colour">
       <div class="presets" id="colorPresets"></div>
       <div class="row" style="margin-top:12px">
         <div>
@@ -233,10 +271,12 @@
         </div>
         <div class="hint">Transparent for stickers and print; white when you drop it onto a dark slide.</div>
       </div>
+      </div>
     </section>
 
-    <section class="panel">
-      <h2>Logo</h2>
+    <section class="panel" data-panel="logo">
+      <h2><button type="button" class="ph" aria-expanded="true" aria-controls="pb-logo"><span class="chev" aria-hidden="true"></span><span>Logo</span><span class="ph-sum" id="sum-logo"></span></button></h2>
+      <div class="pb" id="pb-logo">
       <div class="seg" id="logoSrc">
         <button data-v="ink">A·BASAR</button>
         <button data-v="white">White</button>
@@ -264,10 +304,12 @@
         <label>Plate padding <span class="val" id="logoPadV"></span></label>
         <input type="range" id="logoPad" min="0" max="2" step="0.05">
       </div>
+      </div>
     </section>
 
-    <section class="panel">
-      <h2>Label and export</h2>
+    <section class="panel" data-panel="export">
+      <h2><button type="button" class="ph" aria-expanded="true" aria-controls="pb-export"><span class="chev" aria-hidden="true"></span><span>Label and export</span><span class="ph-sum" id="sum-export"></span></button></h2>
+      <div class="pb" id="pb-export">
       <label for="label">Frame label (optional)</label>
       <input type="text" id="label" placeholder="e.g. AOBASAR.COM">
       <div class="hint">On a circular frame the label curves along the ring; otherwise it sits below the code.</div>
@@ -280,11 +322,12 @@
         <pre id="cli"></pre>
         <button class="btn btn-secondary" id="copyCli" style="margin-top:8px;width:100%">Copy command</button>
       </details>
+      </div>
     </section>
   </div>
 
   <!-- ------------------------------------------------------------- preview -->
-  <div>
+  <div id="stageCol">
     <div id="stage">
       <div id="preview" class="checker"></div>
 
@@ -480,6 +523,59 @@
     r.readAsDataURL(f);
   }
 
+  // ------------------------------------------------------ collapsible panels
+  // Which panels are open is a property of this browser, not of the design, so
+  // it lives under its own key: presets and "Reset style" never touch it.
+  var PANEL_KEY = 'abqr.panels';
+  var panelOpen = {};
+  try { panelOpen = JSON.parse(localStorage.getItem(PANEL_KEY)) || {}; } catch (e) {}
+  var panels = Array.prototype.slice.call(document.querySelectorAll('section[data-panel]'));
+
+  function setPanel(sec, open) {
+    sec.classList.toggle('collapsed', !open);
+    sec.querySelector('.ph').setAttribute('aria-expanded', String(open));
+    panelOpen[sec.dataset.panel] = open;
+  }
+  function savePanels() {
+    try { localStorage.setItem(PANEL_KEY, JSON.stringify(panelOpen)); } catch (e) {}
+    var anyOpen = panels.some(function (p) { return !p.classList.contains('collapsed'); });
+    $('toggleAll').textContent = anyOpen ? 'Collapse all' : 'Expand all';
+  }
+  panels.forEach(function (sec) {
+    setPanel(sec, panelOpen[sec.dataset.panel] !== false);
+    sec.querySelector('.ph').addEventListener('click', function () {
+      setPanel(sec, sec.classList.contains('collapsed'));
+      savePanels();
+    });
+  });
+  $('toggleAll').addEventListener('click', function () {
+    var open = this.textContent === 'Expand all';
+    panels.forEach(function (sec) { setPanel(sec, open); });
+    savePanels();
+  });
+  savePanels();
+
+  // One line per closed panel, so the current design reads without opening it.
+  function labelFor(id, v) {
+    var b = $(id).querySelector('button[data-v="' + v + '"]');
+    return b ? b.textContent : v;
+  }
+  function updateSummaries() {
+    var t = state.text || '';
+    $('sum-content').textContent = /^BEGIN:VCARD/i.test(t)
+      ? 'vCard' + ((t.match(/^FN:(.+)$/m) || [])[1] ? ' · ' + t.match(/^FN:(.+)$/m)[1] : '')
+      : t.split('\n')[0];
+    $('sum-shape').textContent = [labelFor('frame', state.frame) + ' frame',
+      labelFor('dot', state.dot), labelFor('finder', state.finder) + ' finders'].join(' · ');
+    var cp = COLOR_PRESETS.filter(function (p) {
+      return p.fg.toLowerCase() === state.fg.toLowerCase() && p.bg.toLowerCase() === state.bg.toLowerCase();
+    })[0];
+    $('sum-colour').textContent = cp ? cp.name : state.fg + ' on ' + state.bg;
+    $('sum-logo').textContent = state.logoSrc === 'none' ? 'None'
+      : labelFor('logoSrc', state.logoSrc) + ' · ' + Math.round(state.logoPct * 100) + '%';
+    $('sum-export').textContent = (state.label ? '“' + state.label + '” · ' : '') + state.px + ' px';
+  }
+
   // ------------------------------------------------------------- rendering
   function currentOpts() {
     var logo = null, inset = 1;
@@ -527,6 +623,7 @@
       : '';
 
     updateCli();
+    updateSummaries();
     try { localStorage.setItem('abqr.state', JSON.stringify(state)); } catch (e) {}
 
     // the self-test rasterises three times, so keep it off the typing path
