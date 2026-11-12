@@ -26,7 +26,7 @@
     ecc: 'H',              // L | M | Q | H  — H is required if you want a logo
     minVersion: 0,         // 0 = auto
 
-    dot: 'circle',         // hex | circle | rounded | square
+    dot: 'hex',            // hex | circle | rounded | square
     dotScale: 0,           // 0 = per-style default
     finder: 'rounded',     // hex | circle | rounded | square
 
